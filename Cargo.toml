@@ -1,0 +1,8 @@
+[package]
+name = "uptime"
+version = "0.1.0"
+authors = ["Christian Wood <christian@christianwood.net>"]
+edition = "2018"
+
+[dependencies]
+reqwest = "^0.9.19"
