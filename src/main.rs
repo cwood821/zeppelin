@@ -1,23 +1,20 @@
-extern crate reqwest;
 
-use std::collections::HashMap;
+mod status_check;
+use status_check::StatusCheck;
 
-fn main() -> Result<(), Box<std::error::Error>> {
-    let result = is_ok("https://christianwood.net");
-    println!("{:#?}", result);
+mod url_repository;
+use url_repository::UrlRepository;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let urls = match UrlRepository::from_file("urls.txt") {
+        Ok(urls) => urls,
+        Err(_) => panic!("No urls in the urls file") 
+    };
+
+    for url in &urls {
+        let result = StatusCheck::is_ok(&url);
+        println!("{} is ok: {:#?}", url, result);
+    }
+
     Ok(())
 }
-
-fn is_ok(url: &str) -> bool {
-   get_status(&url)
-        .map_err(|_| false)
-        .and_then(|status| Ok(status == reqwest::StatusCode::OK))
-        .unwrap()
-}
-
-// TODO: remove hard dependency on reqwest types
-fn get_status(url: &str) -> Result<reqwest::StatusCode, reqwest::Error> {
-    let resp = reqwest::get(url)?;
-    Ok(resp.status())
-}
-
