@@ -11,7 +11,6 @@ pub enum URLError {
 
 pub struct UrlRepository {} 
 
-
 impl UrlRepository {
 
   pub fn from_file(path: &str) -> Result<Vec<String>, URLError> {
