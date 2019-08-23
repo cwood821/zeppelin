@@ -1,6 +1,6 @@
 # Zeppelin
 
-> Simple uptime check service
+> Simple uptime check utility
 
 ## Run
 To run zeppelin, pass the application two parameters: 
