@@ -1,6 +1,6 @@
 [package]
-name = "uptime"
-version = "0.1.0"
+name = "zeppelin"
+version = "0.1.1"
 authors = ["Christian Wood <christian@christianwood.net>"]
 edition = "2018"
 
@@ -8,3 +8,4 @@ edition = "2018"
 reqwest = "^0.9.19"
 futures = "0.1.26"
 tokio = "0.1.22"
+structopt = "0.3"

@@ -6,41 +6,60 @@ use crate::notifier::Notifier;
 
 pub struct StatusCheck {
   pub client: Client,
-  pub notifier: Notifier
+  pub notifier: Notifier,
+  pub concurrency: usize,
+  pub debug: bool
 }
 
 impl StatusCheck {
 
-  pub fn check(self, urls: Vec<String>) {
-    const PARALLEL_REQUESTS: usize = 2;
+  pub fn are_ok(self, urls: Vec<String>) -> bool {
 
     let responses = stream::iter_ok(urls)
         .map(move |url| {
             let client = Client::new();
+            // We use a head request because we only care
+            // about the status, not the body of the response
             client
-                .get(&url)
+                .head(&url)
                 .send()
         })
-        .buffer_unordered(PARALLEL_REQUESTS);
+        .buffer_unordered(self.concurrency);
 
+    let mut all_ok = true; 
+   
     let work = responses
         .for_each(move |r| {
-            // Note: panics if a connection is failed to establish
-            // Need to handle case where a domain is no longer hosted
-            // https://docs.rs/tokio/0.1.22/tokio/runtime/struct.Builder.html
             match r.status().is_success() {
               true => {},
               false => {
-                    let message = format!("🚨 {} is down!", r.url());
-                    self.notifier.notify(&message);
+                    let message = format!("🚨 {} is returning status {}!", r.url(), r.status());
+                    self.report(&message);
+                    all_ok = false;
               } 
             }
-            println!("Got {} from {}", r.status(), r.url());
+
+            if self.debug {
+              println!("Got {} from {}", r.status(), r.url());
+            }
+
             Ok(())
         })
-        .map_err(|e| panic!("Error while processing: {}", e));
+        .map_err(|_| {
+          // TODO: fix ownership issue and get this to actually fire a notification and log
+          panic!("Trouble connecting to a given URL")
+        });
 
       tokio::run(work);
+
+      all_ok
   }
+
+  fn report(&self, message: &str) {
+   if self.notifier.can_notify() {
+      self.notifier.notify(&message);
+    } 
+  }
+
 
 }

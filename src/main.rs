@@ -1,28 +1,27 @@
-use std::env;
-
 use reqwest::r#async::Client; // 0.9.14
 mod status_check;
 use status_check::StatusCheck;
-mod url_repository;
-use url_repository::UrlRepository;
+mod url_parser;
+use url_parser::parse_urls;
 mod notifier;
 use notifier::Notifier;
+use structopt::StructOpt;
+mod conf;
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+type Result<T> = std::result::Result<T, i32>;
 
 fn main() -> Result<()> {
-    let args: Vec<String> = env::args().collect();
+    let opt = conf::Opt::from_args();
 
-    if args.len() < 2 {
-        panic!("Two arguments required: url file and slack endpoint");
-    }
+    let url_file = opt.file;
+    let slack_url = opt.webhook_url;
 
-    let url_file = &args[1];
-    let slack_url = &args[2];
-
-    let urls = match UrlRepository::from_file(url_file) {
+    let urls = match parse_urls(url_file.to_str().unwrap()) {
         Ok(urls) => urls,
-        Err(_) => panic!("Failed to retrieve urls from the url file") 
+        Err(_) => {
+            panic!("Unable to parse urls from file {}", url_file.to_str().unwrap_or(""));
+        } 
     };
 
     let notifier = Notifier {
@@ -31,10 +30,13 @@ fn main() -> Result<()> {
 
     let status_check = StatusCheck {
         client: Client::new(),
-        notifier: notifier
+        notifier: notifier,
+        concurrency: opt.concurrency,
+        debug: opt.debug
     };
 
-    status_check.check(urls);
-    
-    Ok(())
+     match status_check.are_ok(urls) {
+         true => Ok(()),
+         false => std::process::exit(1)
+     }
 }

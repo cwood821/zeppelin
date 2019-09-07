@@ -5,6 +5,14 @@ pub struct Notifier {
 }
 
 impl Notifier {
+    pub fn can_notify(&self) -> bool {
+      self.has_url()
+    }
+
+    pub fn has_url(&self) -> bool {
+      !self.url.is_empty()
+    }
+
     pub fn notify(&self, message: &str) {
       let mut map = HashMap::new();
       map.insert("text", message);
@@ -14,5 +22,11 @@ impl Notifier {
         let res = client.post(&self.url)
             .json(&map)
             .send();
+
+        if res.is_err() {
+          // Do some logging
+          // https://crates.io/crates/flexi_logger
+        }
     }  
+
 }
