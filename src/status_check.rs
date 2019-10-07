@@ -13,7 +13,7 @@ pub struct StatusCheck {
 
 impl StatusCheck {
 
-  pub fn are_ok(self, urls: Vec<String>) -> bool {
+  pub fn are_ok(&'static self, urls: Vec<String>) -> bool {
 
     let responses = stream::iter_ok(urls)
         .map(move |url| {
@@ -26,8 +26,8 @@ impl StatusCheck {
         })
         .buffer_unordered(self.concurrency);
 
-    let mut all_ok = true; 
-   
+    let mut all_ok = true;
+ 
     let work = responses
         .for_each(move |r| {
             match r.status().is_success() {
@@ -45,9 +45,10 @@ impl StatusCheck {
 
             Ok(())
         })
-        .map_err(|_| {
-          // TODO: fix ownership issue and get this to actually fire a notification and log
-          panic!("Trouble connecting to a given URL")
+        .map_err(move |_| {
+          // TODO: Error handling for notification
+          let message = format!("🚨 Failed to connect to a domain");
+          self.report(&message);
         });
 
       tokio::run(work);
