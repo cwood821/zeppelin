@@ -1,66 +1,99 @@
 extern crate reqwest;
-use futures::{stream, Future, Stream};
-use reqwest::r#async::Client;
+use futures::{stream, future, Future, Stream};
+use reqwest::Client;
 use tokio;
-use crate::notifier::Notifier;
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::thread;
+use crate::notifier::notify;
 
 pub struct StatusCheck {
-  pub client: Client,
-  pub notifier: Notifier,
   pub concurrency: usize,
   pub debug: bool
 }
 
+pub struct Result {
+  url: String,
+  status: reqwest::StatusCode,
+}
+
 impl StatusCheck {
 
-  pub fn are_ok(&'static self, urls: Vec<String>) -> bool {
+  pub fn check(self, urls: Vec<String>) -> Arc<Vec<String>> {
+    // loop over each url, 
+    // spawn a group of threads
+    // join/wait till they all finish 
+    // filter if they were a success or not
+    // let thread_handles = urls.iter().for_each(|url| thread::spawn()))
 
-    let responses = stream::iter_ok(urls)
-        .map(move |url| {
+   let failures = Arc::new(Vec::new());
+   let mut threads = vec![];
+
+   for url in urls {
+      let failures = Arc::clone(&failures);
+      threads.push(thread::spawn(move || {
             let client = Client::new();
-            // We use a head request because we only care
-            // about the status, not the body of the response
-            client
+            let resp = client
                 .head(&url)
                 .send()
-        })
-        .buffer_unordered(self.concurrency);
+                .map(|r| {
+                  r.status().is_success()
+                })
+                .map_err(|_| {
+                  // Failed to connect case
+                  false
+                });
+              
+              match resp.is_ok() {
+                true => {}
+                false => {
+                  eprintln!("{} is down or unreachable!", &url);
+                  let msg = format!("{} is down!", &url);
+                  notify(&msg, "localhost")
+                } 
+              }
+      }));
+   }
 
-    let mut all_ok = true;
- 
-    let work = responses
-        .for_each(move |r| {
-            match r.status().is_success() {
-              true => {},
-              false => {
-                    let message = format!("🚨 {} is returning status {}!", r.url(), r.status());
-                    self.report(&message);
-                    all_ok = false;
-              } 
-            }
+    for thread in threads {
+        let _ = thread.join();
+    }
 
-            if self.debug {
-              println!("Got {} from {}", r.status(), r.url());
-            }
+    failures
+  
+    
+    // let responses = stream::iter_ok(urls)
+    //     .map(move |url| {
+    //         let client = Client::new();
+    //         // We use a head request because we only care
+    //         // about the status, not the body of the response
+    //         client
+    //             .head(&url)
+    //             .send()
+    //             .and_then(|res| future::ok(Result{url: res.url().to_string(), status: res.status()}))
+    //     })
+    //     .buffer_unordered(self.concurrency);
 
-            Ok(())
-        })
-        .map_err(move |_| {
-          // TODO: Error handling for notification
-          let message = format!("🚨 Failed to connect to a domain");
-          self.report(&message);
-        });
+    //   let work = responses.for_each(move |r| {
+    //         if self.debug {
+    //           println!("Got {} from {}", r.status, r.url);
+    //         }
 
-      tokio::run(work);
+    //         match r.status.is_success() {
+    //           true => {
+    //             successes.push(r.url.to_string());
+    //           },
+    //           false => {} 
+    //         }
+    //         Ok(())
+    //     })
+    //     .map_err(|e| {
+    //       // Avoid panics on connection failures
+    //     });
 
-      all_ok
+    //   tokio::run(work);
+
+      // vec!["yo".to_string()]
   }
-
-  fn report(&self, message: &str) {
-   if self.notifier.can_notify() {
-      self.notifier.notify(&message);
-    } 
-  }
-
 
 }

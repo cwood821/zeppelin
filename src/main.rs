@@ -4,18 +4,14 @@ use status_check::StatusCheck;
 mod url_parser;
 use url_parser::parse_urls;
 mod notifier;
-use notifier::Notifier;
 use structopt::StructOpt;
 mod conf;
 
-
-type Result<T> = std::result::Result<T, i32>;
-
-fn main() -> Result<()> {
+fn main() -> () {
     let opt = conf::Opt::from_args();
 
     let url_file = opt.file;
-    let slack_url = opt.webhook_url;
+    let slack_url = opt.webhook_url.to_owned();
 
     let urls = match parse_urls(url_file.to_str().unwrap()) {
         Ok(urls) => urls,
@@ -24,19 +20,16 @@ fn main() -> Result<()> {
         } 
     };
 
-    let notifier = Notifier {
-        url: slack_url.to_string()
-    };
-
     let status_check = StatusCheck {
-        client: Client::new(),
-        notifier: notifier,
         concurrency: opt.concurrency,
         debug: opt.debug
     };
 
-     match status_check.are_ok(urls) {
-         true => Ok(()),
-         false => std::process::exit(1)
-     }
+    let failures = status_check.check(urls);
+    println!("There were {} failures", failures.len());
+    ()
+    // .iter().for_each(move |failure| {
+    //     format!("Failed to connect to {}", failure);
+    //     Notifier::notify("Failed to connect to ", &slack_url);
+    // })
 }
