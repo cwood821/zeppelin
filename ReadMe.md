@@ -16,12 +16,3 @@ zeppelin urls.txt --webhook https://hooks.slack.com/services/your-url-will-be-un
 ```
 zeppelin --help
 ```
-
-## Motivation
-
-My motivation to write Zeppelin was a desire for a small, fast uptime check utility would run on a Raspberry Pi. It's writen in Rust. 
-
-## TODO 
-- Have program return non-zero exit code when any given url fails to return OK status code 
-- Fix case where failures to connect to a URL cause a panic 
-- Log errors
