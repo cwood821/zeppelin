@@ -1,9 +1,9 @@
-use reqwest::r#async::Client; // 0.9.14
 mod status_check;
-use status_check::StatusCheck;
+use status_check::{check};
 mod url_parser;
 use url_parser::parse_urls;
 mod notifier;
+use notifier::{notify};
 use structopt::StructOpt;
 mod conf;
 
@@ -20,16 +20,10 @@ fn main() -> () {
         } 
     };
 
-    let status_check = StatusCheck {
-        concurrency: opt.concurrency,
-        debug: opt.debug
-    };
-
-    let failures = status_check.check(urls);
-    println!("There were {} failures", failures.len());
-    ()
-    // .iter().for_each(move |failure| {
-    //     format!("Failed to connect to {}", failure);
-    //     Notifier::notify("Failed to connect to ", &slack_url);
-    // })
+    let failures = check(urls);
+    failures.iter().for_each(move |failure| {
+        let msg = format!("Failed to connect to {}", failure);
+        println!("{}", msg);
+        notify(&msg, &slack_url);
+    });
 }
